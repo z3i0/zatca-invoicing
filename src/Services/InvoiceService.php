@@ -98,10 +98,8 @@ class InvoiceService
         
         // Save debug XML if enabled
         if ($this->config['debug']['save_xml'] ?? false) {
-            $this->storage->put(
-                'debug/' . $invoice->invoiceNumber . '_unsigned.xml',
-                $xml
-            );
+            $debugPath = ($this->config['debug']['path'] ?? 'zatca/debug') . '/' . $invoice->invoiceNumber . '_unsigned.xml';
+            $this->storage->put($debugPath, $xml);
         }
         
         return $xml;
@@ -137,10 +135,8 @@ class InvoiceService
         
         // Save debug signed XML if enabled
         if ($this->config['debug']['save_xml'] ?? false) {
-            $this->storage->put(
-                'debug/' . $invoice->invoiceNumber . '_signed.xml',
-                $signedXml
-            );
+            $debugPath = ($this->config['debug']['path'] ?? 'zatca/debug') . '/' . $invoice->invoiceNumber . '_signed.xml';
+            $this->storage->put($debugPath, $signedXml);
         }
         
         return [
@@ -375,7 +371,8 @@ XML;
      */
     private function getSecret(): ?string
     {
-        return $this->storage->get('secret.txt');
+        $path = $this->config['secret_path'] ?? 'zatca/secret.txt';
+        return $this->storage->get($path);
     }
 
     /**
@@ -383,7 +380,8 @@ XML;
      */
     public function saveSecret(string $secret): void
     {
-        $this->storage->put('secret.txt', $secret);
+        $path = $this->config['secret_path'] ?? 'zatca/secret.txt';
+        $this->storage->put($path, $secret);
     }
 
     /**
