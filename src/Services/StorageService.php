@@ -79,7 +79,7 @@ class StorageService
             return $path;
         }
         
-        return rtrim($this->basePath, '/') . '/' . ltrim($path, '/');
+        return rtrim($this->basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -97,6 +97,8 @@ class StorageService
      */
     private function isAbsolutePath(string $path): bool
     {
-        return str_starts_with($path, '/') || str_starts_with($path, DIRECTORY_SEPARATOR);
+        return str_starts_with($path, '/') || 
+               str_starts_with($path, '\\') || 
+               (strlen($path) > 2 && $path[1] === ':' && $path[2] === '\\');
     }
 }
