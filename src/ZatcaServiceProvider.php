@@ -38,9 +38,7 @@ class ZatcaServiceProvider extends ServiceProvider
 
         // Register services as singletons
         $this->app->singleton(StorageService::class, function ($app) {
-            return new StorageService(
-                storage_path(config('zatca.certificate.storage_path', 'zatca/certificates'))
-            );
+            return new StorageService(storage_path());
         });
 
         $this->app->singleton(CertificateService::class, function ($app) {
