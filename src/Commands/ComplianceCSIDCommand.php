@@ -48,13 +48,6 @@ class ComplianceCSIDCommand extends Command
                 $csr = file_get_contents($csrPath);
             } else {
                 $csr = Zatca::certificate()->loadCertificate('csr');
-                // Try loading from CSR path
-                if (!$csr) {
-                    $defaultPath = config('zatca.certificate.csr_path');
-                    if ($defaultPath && file_exists($defaultPath)) {
-                        $csr = file_get_contents($defaultPath);
-                    }
-                }
             }
             
             if (empty($csr)) {
