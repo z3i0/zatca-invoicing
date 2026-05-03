@@ -52,8 +52,8 @@ class CertificateService
         openssl_csr_export($csr, $csrPem);
         
         // Save files
-        $csrPath = $merchantData['csr_path'] ?? $this->config['csr_path'] ?? 'csr.pem';
-        $keyPath = $merchantData['private_key_path'] ?? $this->config['private_key_path'] ?? 'private.pem';
+        $csrPath = $merchantData['csr_path'] ?? $this->getCertificatePath('csr');
+        $keyPath = $merchantData['private_key_path'] ?? $this->getCertificatePath('private_key');
         
         $this->storage->put($csrPath, $csrPem);
         $this->storage->put($keyPath, $privateKeyPem);
@@ -207,13 +207,7 @@ CONFIG;
      */
     public function loadCertificate(string $type = 'compliance'): ?string
     {
-        $path = match ($type) {
-            'compliance' => $this->config['compliance_cert_path'] ?? 'compliance.pem',
-            'production' => $this->config['production_cert_path'] ?? 'production.pem',
-            default => $type,
-        };
-        
-        return $this->storage->get($path);
+        return $this->storage->get($this->getCertificatePath($type));
     }
 
     /**
@@ -221,8 +215,7 @@ CONFIG;
      */
     public function loadPrivateKey(): ?string
     {
-        $path = $this->config['private_key_path'] ?? 'private.pem';
-        return $this->storage->get($path);
+        return $this->storage->get($this->getCertificatePath('private_key'));
     }
 
     /**
@@ -230,11 +223,12 @@ CONFIG;
      */
     public function saveCertificate(string $certificate, string $type = 'compliance'): string
     {
-        $path = match ($type) {
-            'compliance' => $this->config['compliance_cert_path'] ?? 'compliance.pem',
-            'production' => $this->config['production_cert_path'] ?? 'production.pem',
-            default => $type . '.pem',
-        };
+        $path = $this->getCertificatePath($type);
+        
+        // Ensure extension
+        if (!str_ends_with(strtolower($path), '.pem')) {
+            $path .= '.pem';
+        }
         
         $this->storage->put($path, $certificate);
         
@@ -246,10 +240,27 @@ CONFIG;
      */
     public function savePrivateKey(string $privateKey): string
     {
-        $path = $this->config['private_key_path'] ?? 'private.pem';
+        $path = $this->getCertificatePath('private_key');
         $this->storage->put($path, $privateKey);
         
         return $this->storage->fullPath($path);
+    }
+
+    /**
+     * Get the path for a certificate or key from configuration
+     * 
+     * @param string $type The type (csr, private_key, compliance, production)
+     * @return string Relative path from storage directory
+     */
+    public function getCertificatePath(string $type): string
+    {
+        return match ($type) {
+            'csr' => $this->config['csr_path'] ?? 'zatca/certificates/csr.pem',
+            'private_key', 'key' => $this->config['private_key_path'] ?? 'zatca/certificates/private.pem',
+            'compliance' => $this->config['compliance_cert_path'] ?? 'zatca/certificates/compliance.pem',
+            'production' => $this->config['production_cert_path'] ?? 'zatca/certificates/production.pem',
+            default => $type,
+        };
     }
 
     /**
