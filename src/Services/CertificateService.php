@@ -1,0 +1,371 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SaudiZATCA\Services;
+
+use SaudiZATCA\Exceptions\CertificateException;
+use OpenSSLAsymmetricKey;
+
+/**
+ * Certificate Service
+ * 
+ * Handles CSR generation, private key creation, and certificate management
+ * according to ZATCA specifications (secp256k1, ECDSA).
+ */
+class CertificateService
+{
+    private const DEFAULT_CURVE = 'secp256k1';
+    private const DEFAULT_INVOICE_TYPES = '1100';
+    private const COUNTRY_CODE = 'SA';
+    private const INDUSTRY = 'Industry';
+    
+    public function __construct(
+        private readonly StorageService $storage,
+        private readonly array $config,
+        private readonly array $securityConfig
+    ) {}
+
+    /**
+     * Generate CSR (Certificate Signing Request) and Private Key
+     * 
+     * @param array<string, mixed> $merchantData
+     * @return array{csr: string, private_key: string, csr_path: string, key_path: string}
+     */
+    public function generateCSR(array $merchantData = []): array
+    {
+        $this->validateMerchantData($merchantData);
+
+        $curve = $this->securityConfig['ecc_curve'] ?? self::DEFAULT_CURVE;
+        $invoiceTypes = $merchantData['invoice_types'] ?? $this->config['invoice_types'] ?? self::DEFAULT_INVOICE_TYPES;
+        
+        // Generate private key using secp256k1
+        $privateKey = $this->generatePrivateKey($curve);
+        
+        // Extract private key PEM
+        openssl_pkey_export($privateKey, $privateKeyPem);
+        
+        // Generate CSR with ZATCA-specific distinguished name
+        $csr = $this->createCSR($privateKey, $merchantData, $invoiceTypes);
+        
+        // Extract CSR PEM
+        openssl_csr_export($csr, $csrPem);
+        
+        // Save files
+        $csrPath = $merchantData['csr_path'] ?? $this->config['csr_path'] ?? 'csr.pem';
+        $keyPath = $merchantData['private_key_path'] ?? $this->config['private_key_path'] ?? 'private.pem';
+        
+        $this->storage->put($csrPath, $csrPem);
+        $this->storage->put($keyPath, $privateKeyPem);
+        
+        return [
+            'csr' => $csrPem,
+            'private_key' => $privateKeyPem,
+            'csr_path' => $this->storage->fullPath($csrPath),
+            'key_path' => $this->storage->fullPath($keyPath),
+        ];
+    }
+
+    /**
+     * Generate private key
+     */
+    private function generatePrivateKey(string $curve): OpenSSLAsymmetricKey
+    {
+        $keyPair = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name' => $curve,
+        ]);
+        
+        if ($keyPair === false) {
+            throw new CertificateException(
+                'Failed to generate private key. Ensure OpenSSL supports EC keys with curve: ' . $curve
+            );
+        }
+        
+        return $keyPair;
+    }
+
+    /**
+     * Create CSR with ZATCA-specific requirements
+     * 
+     * @param OpenSSLAsymmetricKey $privateKey
+     * @param array<string, mixed> $data
+     * @param string $invoiceTypes
+     */
+    private function createCSR(OpenSSLAsymmetricKey $privateKey, array $data, string $invoiceTypes): mixed
+    {
+        $orgIdentifier = $data['organization_identifier'] ?? $data['vat_number'] ?? $this->config['organization'] ?? '';
+        $serialNumber = $this->buildSerialNumber($data);
+        $commonName = $data['common_name'] ?? $this->config['common_name'] ?? $orgIdentifier;
+        $orgName = $data['organization'] ?? $this->config['organization'] ?? '';
+        $orgUnit = $data['organization_unit'] ?? $this->config['organization_unit'] ?? '';
+        $address = $this->buildAddress($data);
+        $industry = $data['industry'] ?? $this->config['industry'] ?? self::INDUSTRY;
+        
+        // Build DN according to ZATCA specification
+        $dn = [
+            'UID' => $orgIdentifier,
+            'serialNumber' => $serialNumber,
+            'CN' => $commonName,
+            'O' => $orgName,
+            'OU' => $orgUnit,
+            'C' => self::COUNTRY_CODE,
+            'L' => $address,
+            'ST' => $data['country_subdivision'] ?? $this->config['country_subdivision'] ?? '',
+            'businessCategory' => $industry,
+        ];
+        
+        // Filter out empty values to avoid OpenSSL errors
+        $dn = array_filter($dn, fn($value) => !empty($value));
+        
+        // Add invoice types as custom extension
+        $config = [
+            'digest_alg' => 'sha256',
+            'req_extensions' => 'v3_req',
+            'attributes' => [
+                'unstructuredName' => $invoiceTypes,
+            ],
+        ];
+        
+        // Add subject alternative name with invoice types
+        $config['config'] = $this->createTempConfig($invoiceTypes);
+        
+        $csr = openssl_csr_new($dn, $privateKey, $config);
+        
+        if ($csr === false) {
+            throw new CertificateException(
+                'Failed to generate CSR: ' . openssl_error_string()
+            );
+        }
+        
+        return $csr;
+    }
+
+    /**
+     * Build serial number for CSR
+     * 
+     * @param array<string, mixed> $data
+     */
+    private function buildSerialNumber(array $data): string
+    {
+        $solutionName = $data['solution_name'] ?? config('zatca.solution_name', 'Laravel');
+        $model = $data['model'] ?? '1';
+        $deviceSerial = $data['device_serial'] ?? $data['serial_number'] ?? '0001';
+        
+        return sprintf('%s-%s-%s', $solutionName, $model, $deviceSerial);
+    }
+
+    /**
+     * Build address string
+     * 
+     * @param array<string, mixed> $data
+     */
+    private function buildAddress(array $data): string
+    {
+        $parts = array_filter([
+            $data['street'] ?? $this->config['street'] ?? null,
+            $data['building'] ?? $this->config['building'] ?? null,
+            $data['city'] ?? $this->config['city'] ?? null,
+            $data['district'] ?? $this->config['district'] ?? null,
+            $data['postal_code'] ?? $this->config['postal_code'] ?? null,
+        ]);
+        
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Create temporary OpenSSL config for CSR extensions
+     */
+    private function createTempConfig(string $invoiceTypes): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'zatca_csr_');
+        
+        $config = <<<CONFIG
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = SA
+CN = dummy
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+otherName.1 = 1.3.6.1.4.1.311.20.2.3;UTF8:{$invoiceTypes}
+CONFIG;
+        
+        file_put_contents($tempFile, $config);
+        
+        return $tempFile;
+    }
+
+    /**
+     * Load certificate from storage
+     */
+    public function loadCertificate(string $type = 'compliance'): ?string
+    {
+        $path = match ($type) {
+            'compliance' => $this->config['compliance_cert_path'] ?? 'compliance.pem',
+            'production' => $this->config['production_cert_path'] ?? 'production.pem',
+            default => $type,
+        };
+        
+        return $this->storage->get($path);
+    }
+
+    /**
+     * Load private key from storage
+     */
+    public function loadPrivateKey(): ?string
+    {
+        $path = $this->config['private_key_path'] ?? 'private.pem';
+        return $this->storage->get($path);
+    }
+
+    /**
+     * Save certificate
+     */
+    public function saveCertificate(string $certificate, string $type = 'compliance'): string
+    {
+        $path = match ($type) {
+            'compliance' => $this->config['compliance_cert_path'] ?? 'compliance.pem',
+            'production' => $this->config['production_cert_path'] ?? 'production.pem',
+            default => $type . '.pem',
+        };
+        
+        $this->storage->put($path, $certificate);
+        
+        return $this->storage->fullPath($path);
+    }
+
+    /**
+     * Save private key
+     */
+    public function savePrivateKey(string $privateKey): string
+    {
+        $path = $this->config['private_key_path'] ?? 'private.pem';
+        $this->storage->put($path, $privateKey);
+        
+        return $this->storage->fullPath($path);
+    }
+
+    /**
+     * Get certificate info
+     */
+    public function getCertificateInfo(string $certificate): array
+    {
+        $info = openssl_x509_parse($certificate);
+        
+        if ($info === false) {
+            throw new CertificateException('Invalid certificate format');
+        }
+        
+        return [
+            'subject' => $info['subject'] ?? [],
+            'issuer' => $info['issuer'] ?? [],
+            'valid_from' => $info['validFrom_time_t'] ?? null,
+            'valid_to' => $info['validTo_time_t'] ?? null,
+            'serial_number' => $info['serialNumber'] ?? '',
+            'fingerprint' => $info['fingerprint'] ?? [],
+        ];
+    }
+
+    /**
+     * Check if certificate is valid
+     */
+    public function isCertificateValid(string $certificate): bool
+    {
+        $info = openssl_x509_parse($certificate);
+        
+        if ($info === false) {
+            return false;
+        }
+        
+        $now = time();
+        $validFrom = $info['validFrom_time_t'] ?? 0;
+        $validTo = $info['validTo_time_t'] ?? 0;
+        
+        return $now >= $validFrom && $now <= $validTo;
+    }
+
+    /**
+     * Get public key from certificate
+     */
+    public function getPublicKey(string $certificate): string
+    {
+        $pubKey = openssl_pkey_get_public($certificate);
+        
+        if ($pubKey === false) {
+            throw new CertificateException('Failed to extract public key from certificate');
+        }
+        
+        $pubKeyDetails = openssl_pkey_get_details($pubKey);
+        
+        if ($pubKeyDetails === false || !isset($pubKeyDetails['key'])) {
+            throw new CertificateException('Failed to get public key details');
+        }
+        
+        return $pubKeyDetails['key'];
+    }
+
+    /**
+     * Extract certificate body (without PEM headers)
+     */
+    public function extractCertificateBody(string $certificate): string
+    {
+        $cleaned = preg_replace('/-----BEGIN CERTIFICATE-----/', '', $certificate);
+        $cleaned = preg_replace('/-----END CERTIFICATE-----/', '', $cleaned ?? '');
+        $cleaned = preg_replace('/\s+/', '', $cleaned ?? '');
+        
+        return trim($cleaned ?? '');
+    }
+
+    /**
+     * Extract private key body (without PEM headers)
+     */
+    public function extractPrivateKeyBody(string $privateKey): string
+    {
+        $cleaned = preg_replace('/-----BEGIN (?:EC )?PRIVATE KEY-----/', '', $privateKey);
+        $cleaned = preg_replace('/-----END (?:EC )?PRIVATE KEY-----/', '', $cleaned ?? '');
+        $cleaned = preg_replace('/\s+/', '', $cleaned ?? '');
+        
+        return trim($cleaned ?? '');
+    }
+
+    /**
+     * Validate merchant data for CSR generation
+     * 
+     * @param array<string, mixed> $data
+     */
+    private function validateMerchantData(array $data): void
+    {
+        $orgIdentifier = $data['organization_identifier'] ?? $data['vat_number'] ?? $this->config['organization'] ?? '';
+        
+        if (empty($orgIdentifier)) {
+            throw new CertificateException('Organization identifier (VAT number) is required');
+        }
+        
+        // VAT number must be 15 digits starting and ending with 3
+        if (!preg_match('/^3\d{13}3$/', $orgIdentifier)) {
+            throw new CertificateException(
+                'VAT number must be 15 digits starting and ending with 3. Provided: ' . $orgIdentifier
+            );
+        }
+        
+        $commonName = $data['common_name'] ?? $this->config['common_name'] ?? '';
+        if (empty($commonName)) {
+            throw new CertificateException('Common name is required');
+        }
+    }
+
+    /**
+     * Clean up temporary files
+     */
+    public function __destruct()
+    {
+        // Clean up temp config files if needed
+    }
+}
