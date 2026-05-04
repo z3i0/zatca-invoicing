@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SaudiZATCA\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use SaudiZATCA\Tests\TestCase;
 use SaudiZATCA\Services\InvoiceService;
 use SaudiZATCA\Data\InvoiceData;
@@ -13,7 +14,7 @@ use SaudiZATCA\Data\BuyerData;
 
 class InvoiceServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_calculates_invoice_totals_correctly()
     {
         $lines = [
@@ -25,39 +26,39 @@ class InvoiceServiceTest extends TestCase
 
         // Subtotal: 2*50 + 1*100 = 200
         $this->assertEquals(200.0, $invoice->subTotal());
-        
+
         // Tax: 200 * 0.15 = 30
         $this->assertEquals(30.0, $invoice->totalTax());
-        
+
         // Total: 200 + 30 = 230
         $this->assertEquals(230.0, $invoice->totalAmount());
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_line_totals()
     {
         $line = new InvoiceLineData('Product', 3, 33.33, 15.0);
 
         // Net: 3 * 33.33 = 99.99
         $this->assertEquals(99.99, $line->netTotal());
-        
+
         // Tax: 99.99 * 0.15 = 15.00 (rounded)
         $this->assertEquals(15.0, $line->calculateTax());
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_line_with_discount()
     {
         $line = new InvoiceLineData('Product', 1, 100.0, 15.0, discount: 10.0);
 
         // Net: 100 - 10 = 90
         $this->assertEquals(90.0, $line->netTotal());
-        
+
         // Tax: 90 * 0.15 = 13.50
         $this->assertEquals(13.50, $line->calculateTax());
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_seller_data_from_array()
     {
         $data = [
@@ -74,7 +75,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals('SA', $seller->country);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_buyer_data_from_array()
     {
         $data = [
@@ -90,7 +91,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertTrue($buyer->isB2B());
     }
 
-    /** @test */
+    #[Test]
     public function buyer_without_vat_is_not_b2b()
     {
         $buyer = new BuyerData(name: 'Consumer');
@@ -98,7 +99,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertFalse($buyer->isB2B());
     }
 
-    /** @test */
+    #[Test]
     public function it_determines_invoice_submission_type()
     {
         $line = new InvoiceLineData('Test', 1, 100.0);
@@ -112,7 +113,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertTrue($simplifiedInvoice->needsReporting());
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_uuid()
     {
         $invoice = new InvoiceData(
@@ -130,7 +131,7 @@ class InvoiceServiceTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_invoice_from_array()
     {
         $data = [
@@ -149,7 +150,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals(200.0, $invoice->subTotal());
     }
 
-    /** @test */
+    #[Test]
     public function it_requires_at_least_one_line()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -158,7 +159,7 @@ class InvoiceServiceTest extends TestCase
         new InvoiceData('INV-001', new \DateTime(), []);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_correct_subtype_code()
     {
         $line = new InvoiceLineData('Test', 1, 100.0);
@@ -173,7 +174,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals(InvoiceData::SUBTYPE_CREDIT_NOTE, $credit->subTypeCode());
     }
 
-    /** @test */
+    #[Test]
     public function it_converts_to_array()
     {
         $line = new InvoiceLineData('Test Product', 2, 50.0, 15.0);
@@ -190,7 +191,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals(15.0, $array['total_tax']);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_total_with_discount()
     {
         $lines = [
@@ -208,7 +209,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals(105.0, $invoice->totalAmount());
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_total_with_charges()
     {
         $lines = [

@@ -6,7 +6,7 @@ namespace SaudiZATCA\Data;
 
 /**
  * Invoice Line Data Transfer Object
- * 
+ *
  * Represents a single line item in a ZATCA invoice.
  */
 class InvoiceLineData
@@ -24,7 +24,8 @@ class InvoiceLineData
         public readonly ?float $taxAmount = null,
         public readonly ?float $totalAmount = null,
         public readonly ?float $netAmount = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Calculate tax amount for this line

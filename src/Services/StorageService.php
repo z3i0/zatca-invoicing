@@ -8,7 +8,7 @@ use SaudiZATCA\Exceptions\ZatcaException;
 
 /**
  * Storage Service
- * 
+ *
  * Handles file operations for certificates and keys.
  */
 class StorageService
@@ -27,7 +27,7 @@ class StorageService
         $fullPath = $this->fullPath($path);
         $dir = dirname($fullPath);
         $this->ensureDirectoryExists($dir);
-        
+
         if (file_put_contents($fullPath, $content) === false) {
             throw new ZatcaException("Failed to write file: {$path}");
         }
@@ -39,11 +39,11 @@ class StorageService
     public function get(string $path): ?string
     {
         $fullPath = $this->fullPath($path);
-        
+
         if (!file_exists($fullPath)) {
             return null;
         }
-        
+
         $content = file_get_contents($fullPath);
         return $content !== false ? $content : null;
     }
@@ -62,11 +62,11 @@ class StorageService
     public function delete(string $path): bool
     {
         $fullPath = $this->fullPath($path);
-        
+
         if (file_exists($fullPath)) {
             return unlink($fullPath);
         }
-        
+
         return false;
     }
 
@@ -78,7 +78,7 @@ class StorageService
         if ($this->isAbsolutePath($path)) {
             return $path;
         }
-        
+
         return rtrim($this->basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR);
     }
 
@@ -97,8 +97,8 @@ class StorageService
      */
     private function isAbsolutePath(string $path): bool
     {
-        return str_starts_with($path, '/') || 
-               str_starts_with($path, '\\') || 
+        return str_starts_with($path, '/') ||
+               str_starts_with($path, '\\') ||
                (strlen($path) > 2 && $path[1] === ':' && $path[2] === '\\');
     }
 }

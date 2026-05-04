@@ -20,6 +20,14 @@ abstract class TestCase extends Orchestra
                 putenv("OPENSSL_CONF=$opensslConf");
             }
         }
+
+        if (!getenv('RANDFILE')) {
+            $randFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'openssl.rnd';
+            if (!file_exists($randFile)) {
+                file_put_contents($randFile, random_bytes(1024));
+            }
+            putenv("RANDFILE=$randFile");
+        }
     }
 
     protected function getPackageProviders($app): array

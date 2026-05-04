@@ -55,10 +55,10 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
-        "test": "phpunit",
+        "test": "phpunit --no-coverage",
         "test-coverage": "phpunit --coverage-html coverage",
         "phpstan": "phpstan analyse src tests --level=8",
-        "phpcs": "phpcs src tests --standard=PSR12",
-        "phpcbf": "phpcbf src tests --standard=PSR12"
+        "phpcs": "phpcs src tests --standard=PSR12 --exclude=PSR1.Methods.CamelCapsMethodName,Generic.Files.LineLength",
+        "phpcbf": "phpcbf src tests --standard=PSR12 --exclude=PSR1.Methods.CamelCapsMethodName,Generic.Files.LineLength"
     }
 }

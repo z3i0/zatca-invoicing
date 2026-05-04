@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SaudiZATCA\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use SaudiZATCA\Tests\TestCase;
 use SaudiZATCA\Services\QRCodeService;
 use SaudiZATCA\Data\SellerData;
@@ -20,11 +21,11 @@ class QRCodeServiceTest extends TestCase
         $this->service = new QRCodeService();
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_phase1_qr_code()
     {
         $seller = new SellerData('Test Company', '300000000000003');
-        
+
         $qrData = $this->service->generatePhase1QR(
             $seller,
             100.0,
@@ -36,7 +37,7 @@ class QRCodeServiceTest extends TestCase
         $this->assertTrue($this->isValidBase64($qrData));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_phase2_qr_code()
     {
         $seller = new SellerData('Test Company', '300000000000003');
@@ -45,7 +46,7 @@ class QRCodeServiceTest extends TestCase
             new \DateTime('2024-01-15 10:30:00'),
             [new InvoiceLineData('Product', 1, 100.0)]
         );
-        
+
         $qrData = $this->service->generatePhase2QR(
             $seller,
             $invoice,
@@ -59,11 +60,11 @@ class QRCodeServiceTest extends TestCase
         $this->assertTrue($this->isValidBase64($qrData));
     }
 
-    /** @test */
+    #[Test]
     public function it_decodes_qr_code_data()
     {
         $seller = new SellerData('Test Company', '300000000000003');
-        
+
         $qrData = $this->service->generatePhase1QR(
             $seller,
             115.0,
@@ -78,16 +79,16 @@ class QRCodeServiceTest extends TestCase
         $this->assertArrayHasKey(3, $decoded); // Timestamp
         $this->assertArrayHasKey(4, $decoded); // Total
         $this->assertArrayHasKey(5, $decoded); // VAT
-        
+
         $this->assertEquals('Test Company', $decoded[1]);
         $this->assertEquals('300000000000003', $decoded[2]);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_correct_qr_code()
     {
         $seller = new SellerData('Test Company', '300000000000003');
-        
+
         $qrData = $this->service->generatePhase1QR(
             $seller,
             115.0,
@@ -98,18 +99,18 @@ class QRCodeServiceTest extends TestCase
         $this->assertTrue($this->service->validate($qrData));
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_invalid_qr_code()
     {
         $this->assertFalse($this->service->validate('invalid_data'));
         $this->assertFalse($this->service->validate(base64_encode('invalid')));
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_formatted_data()
     {
         $seller = new SellerData('Test Company', '300000000000003');
-        
+
         $qrData = $this->service->generatePhase1QR(
             $seller,
             115.0,
@@ -124,62 +125,62 @@ class QRCodeServiceTest extends TestCase
         $this->assertArrayHasKey('timestamp', $formatted);
         $this->assertArrayHasKey('total_amount', $formatted);
         $this->assertArrayHasKey('vat_amount', $formatted);
-        
+
         $this->assertEquals('Test Company', $formatted['seller_name']);
         $this->assertEquals('300000000000003', $formatted['vat_number']);
         $this->assertEquals('115', $formatted['total_amount']);
         $this->assertEquals('15', $formatted['vat_amount']);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_consistent_qr_data()
     {
         $seller = new SellerData('Test Company', '300000000000003');
         $timestamp = new \DateTime('2024-01-15 10:30:00');
-        
+
         $qr1 = $this->service->generatePhase1QR($seller, 100.0, 15.0, $timestamp);
         $qr2 = $this->service->generatePhase1QR($seller, 100.0, 15.0, $timestamp);
 
         $this->assertEquals($qr1, $qr2, 'Same inputs should produce same QR data');
     }
 
-    /** @test */
+    #[Test]
     public function it_decodes_arabic_seller_name()
     {
         $seller = new SellerData('شركة اختبار', '300000000000003', nameAr: 'Test Company');
-        
+
         $qrData = $this->service->generatePhase1QR($seller, 100.0, 15.0);
 
         $decoded = $this->service->decode($qrData);
-        
+
         $this->assertEquals('شركة اختبار', $decoded[1]);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_timestamp_format()
     {
         $seller = new SellerData('Test', '300000000000003');
-        
+
         // Create QR with invalid timestamp
         $invalidTlv = "\x01\x04Test\x02\x0f300000000000003\x03\x0binvalid\x04\x03100\x05\x0215";
         $invalidQr = base64_encode($invalidTlv);
-        
+
         $this->assertFalse($this->service->validate($invalidQr));
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_numeric_amounts()
     {
         $seller = new SellerData('Test', '300000000000003');
-        
+
         // Create QR with non-numeric total
         $invalidTlv = "\x01\x04Test\x02\x0f300000000000003\x03\x172024-01-15T10:30:00+00:00\x04\x05abc\x05\x0215";
         $invalidQr = base64_encode($invalidTlv);
-        
+
         $this->assertFalse($this->service->validate($invalidQr));
     }
 
-    /** @test */
+    #[Test]
     public function phase2_qr_contains_all_tags()
     {
         $seller = new SellerData('Test Company', '300000000000003');
@@ -188,7 +189,7 @@ class QRCodeServiceTest extends TestCase
             new \DateTime('2024-01-15 10:30:00'),
             [new InvoiceLineData('Product', 1, 100.0)]
         );
-        
+
         $qrData = $this->service->generatePhase2QR(
             $seller,
             $invoice,
@@ -203,13 +204,13 @@ class QRCodeServiceTest extends TestCase
         $this->assertArrayHasKey(6, $decoded); // Hash
         $this->assertArrayHasKey(7, $decoded); // Signature
         $this->assertArrayHasKey(8, $decoded); // Public Key
-        
+
         $this->assertEquals('test_hash', $decoded[6]);
         $this->assertEquals('test_signature', $decoded[7]);
         $this->assertEquals('test_public_key', $decoded[8]);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_tag_names()
     {
         $this->assertEquals('Seller Name', $this->service->getTagName(1));

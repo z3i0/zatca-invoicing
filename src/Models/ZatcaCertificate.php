@@ -9,13 +9,13 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * ZATCA Certificate Model
- * 
+ *
  * Stores certificate information for ZATCA integration.
  */
 class ZatcaCertificate extends Model
 {
     protected $table = 'zatca_certificates';
-    
+
     protected $fillable = [
         'environment',
         'type',
@@ -30,18 +30,18 @@ class ZatcaCertificate extends Model
         'expires_at',
         'is_active',
     ];
-    
+
     protected $casts = [
         'issued_at' => 'datetime',
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
     ];
-    
+
     protected $hidden = [
         'private_key_content',
         'secret',
     ];
-    
+
     /**
      * Scope: Active certificates
      */
@@ -49,7 +49,7 @@ class ZatcaCertificate extends Model
     {
         return $query->where('is_active', true);
     }
-    
+
     /**
      * Scope: By environment
      */
@@ -57,7 +57,7 @@ class ZatcaCertificate extends Model
     {
         return $query->where('environment', $environment);
     }
-    
+
     /**
      * Scope: By type
      */
@@ -65,7 +65,7 @@ class ZatcaCertificate extends Model
     {
         return $query->where('type', $type);
     }
-    
+
     /**
      * Scope: By VAT number
      */
@@ -73,7 +73,7 @@ class ZatcaCertificate extends Model
     {
         return $query->where('vat_number', $vatNumber);
     }
-    
+
     /**
      * Check if certificate is valid (not expired)
      */
@@ -82,14 +82,14 @@ class ZatcaCertificate extends Model
         if (!$this->is_active) {
             return false;
         }
-        
+
         if ($this->expires_at && $this->expires_at->isPast()) {
             return false;
         }
-        
+
         return true;
     }
-    
+
     /**
      * Get certificate body without PEM headers
      */
@@ -98,14 +98,14 @@ class ZatcaCertificate extends Model
         if (empty($this->certificate_content)) {
             return null;
         }
-        
+
         $cleaned = preg_replace('/-----BEGIN CERTIFICATE-----/', '', $this->certificate_content);
         $cleaned = preg_replace('/-----END CERTIFICATE-----/', '', $cleaned);
         $cleaned = preg_replace('/\s+/', '', $cleaned);
-        
+
         return trim($cleaned);
     }
-    
+
     /**
      * Deactivate this certificate
      */

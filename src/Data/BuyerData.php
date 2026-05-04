@@ -6,7 +6,7 @@ namespace SaudiZATCA\Data;
 
 /**
  * Buyer Data Transfer Object
- * 
+ *
  * Represents buyer/customer information for ZATCA invoices.
  */
 class BuyerData
@@ -25,7 +25,8 @@ class BuyerData
         public readonly ?string $email = null,
         public readonly ?string $phone = null,
         public readonly ?string $registrationNumber = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Create from array

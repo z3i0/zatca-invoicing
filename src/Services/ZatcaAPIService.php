@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ZATCA API Service
- * 
+ *
  * Handles all communication with ZATCA APIs across all environments:
  * - Sandbox: Development/testing
  * - Simulation: Pre-production testing
@@ -19,10 +19,10 @@ class ZatcaAPIService
 {
     private const API_VERSION = 'V2';
     private const CONTENT_TYPE = 'application/json';
-    
+
     private string $baseUrl;
     private array $credentials;
-    
+
     public function __construct(
         private string $environment,
         private readonly array $apiConfig,
@@ -34,13 +34,13 @@ class ZatcaAPIService
 
     /**
      * Request Compliance CSID (Certificate Signing ID)
-     * 
+     *
      * Step 1 in ZATCA onboarding process
      */
     public function requestComplianceCSID(string $csrContent, string $otp): array
     {
         $this->log('Requesting Compliance CSID...');
-        
+
         $response = $this->request(
             method: 'POST',
             endpoint: '/compliance',
@@ -52,15 +52,15 @@ class ZatcaAPIService
             ],
             useBasicAuth: true
         );
-        
+
         $this->log('Compliance CSID received successfully');
-        
+
         return $this->parseComplianceResponse($response);
     }
 
     /**
      * Check invoice compliance
-     * 
+     *
      * Step 2: Submit test invoices for compliance validation
      */
     public function checkInvoiceCompliance(
@@ -71,7 +71,7 @@ class ZatcaAPIService
         string $secret
     ): array {
         $this->log('Checking invoice compliance...');
-        
+
         $response = $this->request(
             method: 'POST',
             endpoint: '/compliance/invoices',
@@ -82,13 +82,13 @@ class ZatcaAPIService
             ],
             headers: $this->buildAuthHeaders($certificate, $secret)
         );
-        
+
         return $this->parseApiResponse($response);
     }
 
     /**
      * Request Production CSID
-     * 
+     *
      * Step 3: After passing compliance tests
      */
     public function requestProductionCSID(
@@ -97,7 +97,7 @@ class ZatcaAPIService
         string $secret
     ): array {
         $this->log('Requesting Production CSID...');
-        
+
         $response = $this->request(
             method: 'POST',
             endpoint: '/production/csids',
@@ -106,9 +106,9 @@ class ZatcaAPIService
             ],
             headers: $this->buildAuthHeaders($certificate, $secret)
         );
-        
+
         $this->log('Production CSID received successfully');
-        
+
         return $this->parseComplianceResponse($response);
     }
 
@@ -121,7 +121,7 @@ class ZatcaAPIService
         string $secret
     ): array {
         $this->log('Renewing CSID...');
-        
+
         $response = $this->request(
             method: 'PATCH',
             endpoint: '/csids',
@@ -130,13 +130,13 @@ class ZatcaAPIService
             ],
             headers: $this->buildAuthHeaders($certificate, $secret)
         );
-        
+
         return $this->parseComplianceResponse($response);
     }
 
     /**
      * Report Invoice (for simplified/B2C invoices)
-     * 
+     *
      * Submit invoice to ZATCA reporting endpoint
      */
     public function reportInvoice(
@@ -148,30 +148,30 @@ class ZatcaAPIService
         ?string $clearanceStatus = null
     ): array {
         $this->log("Reporting invoice {$uuid}...");
-        
+
         $body = [
             'invoiceHash' => $invoiceHash,
             'uuid' => $uuid,
             'invoice' => base64_encode($signedInvoice),
         ];
-        
+
         if ($clearanceStatus) {
             $body['clearanceStatus'] = $clearanceStatus;
         }
-        
+
         $response = $this->request(
             method: 'POST',
-            endpoint: '/invoices/reporting/' . self::API_VERSION,
+            endpoint: '/invoices/reporting/single',
             body: $body,
             headers: $this->buildAuthHeaders($certificate, $secret)
         );
-        
+
         return $this->parseApiResponse($response);
     }
 
     /**
      * Clear Invoice (for standard/B2B invoices)
-     * 
+     *
      * Submit invoice to ZATCA clearance endpoint
      */
     public function clearInvoice(
@@ -182,18 +182,21 @@ class ZatcaAPIService
         string $secret
     ): array {
         $this->log("Clearing invoice {$uuid}...");
-        
+
         $response = $this->request(
             method: 'POST',
-            endpoint: '/invoices/clearance/' . self::API_VERSION,
+            endpoint: '/invoices/clearance/single',
             body: [
                 'invoiceHash' => $invoiceHash,
                 'uuid' => $uuid,
                 'invoice' => base64_encode($signedInvoice),
             ],
-            headers: $this->buildAuthHeaders($certificate, $secret)
+            headers: [
+                ...$this->buildAuthHeaders($certificate, $secret),
+                'Clearance-Status: 1',
+            ]
         );
-        
+
         return $this->parseApiResponse($response);
     }
 
@@ -203,7 +206,7 @@ class ZatcaAPIService
     public function getInvoiceStatus(string $uuid, string $certificate, string $secret): array
     {
         $this->log("Getting invoice status for {$uuid}...");
-        
+
         return $this->request(
             method: 'GET',
             endpoint: '/invoices/' . $uuid . '/status',
@@ -225,7 +228,7 @@ class ZatcaAPIService
 
     /**
      * Make HTTP request to ZATCA API
-     * 
+     *
      * @param array<string, mixed>|null $body
      * @param string[] $headers
      */
@@ -237,35 +240,36 @@ class ZatcaAPIService
         bool $useBasicAuth = false
     ): array {
         $url = $this->baseUrl . $endpoint;
-        
+
         $ch = curl_init();
-        
+
         // Set basic options
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->environment === 'production');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $this->apiConfig['timeout'] ?? 30);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        
+
         // Build headers
         $requestHeaders = [
             'Content-Type: ' . self::CONTENT_TYPE,
             'Accept: application/json',
+            'Accept-Language: en',
             'Accept-Version: ' . self::API_VERSION,
         ];
-        
+
         // Add authentication
         if ($useBasicAuth && !empty($this->credentials['username']) && !empty($this->credentials['password'])) {
             curl_setopt($ch, CURLOPT_USERPWD, $this->credentials['username'] . ':' . $this->credentials['password']);
         }
-        
+
         // Add custom headers
         foreach ($headers as $header) {
             $requestHeaders[] = $header;
         }
-        
+
         curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
-        
+
         // Set method and body
         match (strtoupper($method)) {
             'POST' => $this->setPostOptions($ch, $body),
@@ -274,33 +278,33 @@ class ZatcaAPIService
             'DELETE' => curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE'),
             default => curl_setopt($ch, CURLOPT_HTTPGET, true),
         };
-        
+
         // Log request if enabled
         if ($this->shouldLog('requests')) {
             $this->logRequest($method, $url, $body);
         }
-        
+
         // Execute request
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
-        
+
         if ($response === false) {
             throw new APIException(
                 message: 'CURL Error: ' . $error,
                 statusCode: 0
             );
         }
-        
+
         // Log response if enabled
         if ($this->shouldLog('responses')) {
             $this->logResponse($httpCode, $response);
         }
-        
+
         // Parse response
         $decoded = json_decode($response, true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             // Try to handle XML responses
             if (str_starts_with(trim($response), '<')) {
@@ -310,19 +314,19 @@ class ZatcaAPIService
                     'headers' => [],
                 ];
             }
-            
+
             throw new APIException(
                 message: 'Invalid JSON response from ZATCA API',
                 statusCode: $httpCode,
                 responseBody: $response
             );
         }
-        
+
         // Check for API errors
         if ($httpCode >= 400) {
             $errorMessage = $decoded['message'] ?? $decoded['error'] ?? 'Unknown API error';
             $errors = $decoded['errors'] ?? $decoded['validationResults'] ?? null;
-            
+
             throw new APIException(
                 message: "ZATCA API Error ({$httpCode}): {$errorMessage}",
                 statusCode: $httpCode,
@@ -330,7 +334,7 @@ class ZatcaAPIService
                 details: is_array($errors) ? $errors : null
             );
         }
-        
+
         return [
             'status' => $httpCode,
             'data' => $decoded,
@@ -340,7 +344,7 @@ class ZatcaAPIService
 
     /**
      * Set POST options
-     * 
+     *
      * @param array<string, mixed>|null $body
      */
     private function setPostOptions(\CurlHandle $ch, ?array $body): void
@@ -353,7 +357,7 @@ class ZatcaAPIService
 
     /**
      * Set PATCH options
-     * 
+     *
      * @param array<string, mixed>|null $body
      */
     private function setPatchOptions(\CurlHandle $ch, ?array $body): void
@@ -366,7 +370,7 @@ class ZatcaAPIService
 
     /**
      * Set PUT options
-     * 
+     *
      * @param array<string, mixed>|null $body
      */
     private function setPutOptions(\CurlHandle $ch, ?array $body): void
@@ -383,7 +387,7 @@ class ZatcaAPIService
     private function buildAuthHeaders(string $certificate, string $secret): array
     {
         $certBody = $this->extractCertBody($certificate);
-        
+
         return [
             'Authorization: Basic ' . base64_encode($certBody . ':' . $secret),
             'Content-Type: ' . self::CONTENT_TYPE,
@@ -398,7 +402,7 @@ class ZatcaAPIService
         $cleaned = preg_replace('/-----BEGIN CERTIFICATE-----/', '', $certificate);
         $cleaned = preg_replace('/-----END CERTIFICATE-----/', '', $cleaned ?? '');
         $cleaned = preg_replace('/\s+/', '', $cleaned ?? '');
-        
+
         return trim($cleaned ?? '');
     }
 
@@ -408,7 +412,7 @@ class ZatcaAPIService
     private function parseComplianceResponse(array $response): array
     {
         $data = $response['data'] ?? [];
-        
+
         return [
             'certificate' => $data['binarySecurityToken'] ?? $data['certificate'] ?? '',
             'secret' => $data['secret'] ?? '',
@@ -425,7 +429,7 @@ class ZatcaAPIService
     private function parseApiResponse(array $response): array
     {
         $data = $response['data'] ?? [];
-        
+
         return [
             'status' => $response['status'],
             'is_valid' => ($response['status'] === 200 || $response['status'] === 202),
@@ -445,7 +449,7 @@ class ZatcaAPIService
         if (!($this->loggingConfig['enabled'] ?? false)) {
             return false;
         }
-        
+
         return match ($type) {
             'requests' => $this->loggingConfig['log_api_requests'] ?? true,
             'responses' => $this->loggingConfig['log_api_responses'] ?? true,
@@ -461,14 +465,14 @@ class ZatcaAPIService
         if (!($this->loggingConfig['enabled'] ?? false)) {
             return;
         }
-        
+
         $channel = $this->loggingConfig['channel'] ?? 'zatca';
         Log::channel($channel)->{$level}('[ZATCA] ' . $message);
     }
 
     /**
      * Log request details
-     * 
+     *
      * @param array<string, mixed>|null $body
      */
     private function logRequest(string $method, string $url, ?array $body): void
@@ -477,11 +481,11 @@ class ZatcaAPIService
             'method' => $method,
             'url' => $url,
         ];
-        
+
         if ($body !== null && ($this->loggingConfig['log_sensitive_data'] ?? false)) {
             $logData['body'] = $body;
         }
-        
+
         $this->log('Request: ' . json_encode($logData));
     }
 

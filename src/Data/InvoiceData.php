@@ -9,7 +9,7 @@ use DateTimeInterface;
 
 /**
  * Invoice Data Transfer Object
- * 
+ *
  * Represents the main invoice data for ZATCA compliance.
  */
 class InvoiceData
@@ -18,7 +18,7 @@ class InvoiceData
     public const TYPE_SIMPLIFIED = 'simplified';   // B2C - needs reporting
     public const TYPE_CREDIT_NOTE = 'credit_note';
     public const TYPE_DEBIT_NOTE = 'debit_note';
-    
+
     public const SUBTYPE_TAX_INVOICE = '0100000';
     public const SUBTYPE_SIMPLIFIED = '0200000';
     public const SUBTYPE_CREDIT_NOTE = '0300000';
@@ -134,17 +134,20 @@ class InvoiceData
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
             mt_rand(0, 0xffff),
             mt_rand(0, 0x0fff) | 0x4000,
             mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff)
         );
     }
 
     /**
      * Create from array
-     * 
+     *
      * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
@@ -156,7 +159,7 @@ class InvoiceData
 
         return new self(
             invoiceNumber: $data['invoice_number'] ?? $data['number'] ?? '',
-            issueDate: isset($data['issue_date']) 
+            issueDate: isset($data['issue_date'])
                 ? ($data['issue_date'] instanceof DateTimeInterface ? $data['issue_date'] : new DateTime($data['issue_date']))
                 : new DateTime(),
             lines: $lines,
@@ -186,7 +189,7 @@ class InvoiceData
 
     /**
      * Convert to array
-     * 
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array

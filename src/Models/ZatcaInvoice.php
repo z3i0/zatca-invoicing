@@ -10,13 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * ZATCA Invoice Model
- * 
+ *
  * Stores invoice information and ZATCA submission status.
  */
 class ZatcaInvoice extends Model
 {
     protected $table = 'zatca_invoices';
-    
+
     protected $fillable = [
         'invoice_number',
         'uuid',
@@ -48,7 +48,7 @@ class ZatcaInvoice extends Model
         'retry_count',
         'last_retry_at',
     ];
-    
+
     protected $casts = [
         'issue_date' => 'datetime',
         'delivery_date' => 'datetime',
@@ -62,7 +62,7 @@ class ZatcaInvoice extends Model
         'discount' => 'decimal:2',
         'retry_count' => 'integer',
     ];
-    
+
     // Status constants
     public const STATUS_DRAFT = 'draft';
     public const STATUS_GENERATED = 'generated';
@@ -71,13 +71,13 @@ class ZatcaInvoice extends Model
     public const STATUS_CLEARED = 'cleared';
     public const STATUS_REPORTED = 'reported';
     public const STATUS_FAILED = 'failed';
-    
+
     // Type constants
     public const TYPE_STANDARD = 'standard';
     public const TYPE_SIMPLIFIED = 'simplified';
     public const TYPE_CREDIT_NOTE = 'credit_note';
     public const TYPE_DEBIT_NOTE = 'debit_note';
-    
+
     /**
      * Scope: By status
      */
@@ -85,7 +85,7 @@ class ZatcaInvoice extends Model
     {
         return $query->where('status', $status);
     }
-    
+
     /**
      * Scope: By type
      */
@@ -93,7 +93,7 @@ class ZatcaInvoice extends Model
     {
         return $query->where('type', $type);
     }
-    
+
     /**
      * Scope: By environment
      */
@@ -101,7 +101,7 @@ class ZatcaInvoice extends Model
     {
         return $query->where('environment', $environment);
     }
-    
+
     /**
      * Scope: Pending submission
      */
@@ -110,7 +110,7 @@ class ZatcaInvoice extends Model
         return $query->whereIn('status', [self::STATUS_SIGNED, self::STATUS_FAILED])
                      ->where('retry_count', '<', 3);
     }
-    
+
     /**
      * Scope: Submitted today
      */
@@ -118,7 +118,7 @@ class ZatcaInvoice extends Model
     {
         return $query->whereDate('created_at', today());
     }
-    
+
     /**
      * Logs relationship
      */
@@ -126,7 +126,7 @@ class ZatcaInvoice extends Model
     {
         return $this->hasMany(ZatcaLog::class, 'invoice_id');
     }
-    
+
     /**
      * Mark as submitted
      */
@@ -139,7 +139,7 @@ class ZatcaInvoice extends Model
             'clearance_status' => $this->type === self::TYPE_SIMPLIFIED ? 'reported' : 'cleared',
         ]);
     }
-    
+
     /**
      * Mark as failed
      */
@@ -150,7 +150,7 @@ class ZatcaInvoice extends Model
             'retry_count' => $this->retry_count + 1,
             'last_retry_at' => now(),
         ]);
-        
+
         $this->logs()->create([
             'level' => 'error',
             'category' => 'invoice',
@@ -159,7 +159,7 @@ class ZatcaInvoice extends Model
             'status_code' => '500',
         ]);
     }
-    
+
     /**
      * Check if invoice can be retried
      */
@@ -167,7 +167,7 @@ class ZatcaInvoice extends Model
     {
         return $this->status === self::STATUS_FAILED && $this->retry_count < 3;
     }
-    
+
     /**
      * Check if invoice is cleared/reported
      */

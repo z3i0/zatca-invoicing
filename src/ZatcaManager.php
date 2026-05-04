@@ -18,7 +18,7 @@ use SaudiZATCA\Data\BuyerData;
 
 /**
  * ZATCA Manager - Main orchestrator class
- * 
+ *
  * This is the primary class for interacting with ZATCA functionality.
  * It provides a unified interface to all ZATCA operations.
  */
@@ -26,7 +26,8 @@ class ZatcaManager
 {
     public function __construct(
         private readonly Application $app
-    ) {}
+    ) {
+    }
 
     /**
      * Access certificate service

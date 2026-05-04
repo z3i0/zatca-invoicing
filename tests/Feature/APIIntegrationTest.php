@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SaudiZATCA\Tests\Feature;
 
+use PHPUnit\Framework\Attributes\Test;
 use SaudiZATCA\Tests\TestCase;
 use SaudiZATCA\Services\ZatcaAPIService;
 use SaudiZATCA\Exceptions\APIException;
@@ -16,7 +17,7 @@ class APIIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->apiService = new ZatcaAPIService(
             'sandbox',
             [
@@ -30,14 +31,14 @@ class APIIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_correct_api_base_url_for_sandbox()
     {
         $this->assertStringContainsString('developer-portal', $this->apiService->getBaseUrl());
         $this->assertStringContainsString('sandbox', $this->apiService->getEnvironment());
     }
 
-    /** @test */
+    #[Test]
     public function it_can_switch_environments()
     {
         $apiService = new ZatcaAPIService(
@@ -74,12 +75,12 @@ class APIIntegrationTest extends TestCase
         $this->assertEquals('production', $apiService->getEnvironment());
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_invalid_json_response()
     {
         // This test verifies error handling without making actual HTTP requests
         $this->expectException(APIException::class);
-        
+
         // We can't easily mock curl, but we can verify the exception structure
         $exception = new APIException(
             message: 'Invalid JSON response',
@@ -89,11 +90,11 @@ class APIIntegrationTest extends TestCase
 
         $this->assertEquals(500, $exception->getStatusCode());
         $this->assertEquals('not json', $exception->getResponseBody());
-        
+
         throw $exception;
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_api_error_response()
     {
         $exception = new APIException(
@@ -108,31 +109,31 @@ class APIIntegrationTest extends TestCase
         $this->assertArrayHasKey('field', $exception->getDetails());
     }
 
-    /** @test */
+    #[Test]
     public function sandbox_config_is_complete()
     {
         $config = config('zatca.api.sandbox');
-        
+
         $this->assertNotEmpty($config);
         $this->assertArrayHasKey('base_url', $config);
         $this->assertStringContainsString('zatca.gov.sa', $config['base_url']);
     }
 
-    /** @test */
+    #[Test]
     public function production_config_is_complete()
     {
         $config = config('zatca.api.production');
-        
+
         $this->assertNotEmpty($config);
         $this->assertArrayHasKey('base_url', $config);
         $this->assertStringContainsString('zatca.gov.sa', $config['base_url']);
     }
 
-    /** @test */
+    #[Test]
     public function all_environments_have_required_config()
     {
         $environments = ['sandbox', 'simulation', 'production'];
-        
+
         foreach ($environments as $env) {
             $config = config("zatca.api.{$env}");
             $this->assertNotNull($config, "Config for {$env} should exist");
@@ -140,25 +141,25 @@ class APIIntegrationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_vat_number_format_in_merchant_data()
     {
         $this->expectException(\SaudiZATCA\Exceptions\CertificateException::class);
-        
+
         $certService = app(\SaudiZATCA\Services\CertificateService::class);
-        
+
         // Invalid VAT - not 15 digits
         $certService->generateCSR([
             'organization_identifier' => '12345',
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_accepts_valid_vat_number_format()
     {
         // Valid VAT: 15 digits starting and ending with 3
         $vat = '300000000000003';
-        
+
         $this->assertMatchesRegularExpression('/^3\d{13}3$/', $vat);
     }
 }

@@ -16,7 +16,7 @@ use SaudiZATCA\ZatcaManager;
  * @method static array generateCSR(array $merchantData = [])
  * @method static array processInvoice(\SaudiZATCA\Data\InvoiceData $invoice, \SaudiZATCA\Data\SellerData $seller, ?\SaudiZATCA\Data\BuyerData $buyer = null)
  * @method static string generatePhase1QR(\SaudiZATCA\Data\SellerData $seller, float $total, float $vat, ?\DateTime $timestamp = null)
- * 
+ *
  * @see \SaudiZATCA\ZatcaManager
  */
 class Zatca extends Facade

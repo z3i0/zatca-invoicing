@@ -10,13 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * ZATCA Log Model
- * 
+ *
  * Stores detailed logs of all ZATCA operations.
  */
 class ZatcaLog extends Model
 {
     protected $table = 'zatca_logs';
-    
+
     protected $fillable = [
         'level',
         'category',
@@ -31,26 +31,26 @@ class ZatcaLog extends Model
         'duration_ms',
         'ip_address',
     ];
-    
+
     protected $casts = [
         'payload' => 'array',
         'response' => 'array',
         'duration_ms' => 'float',
     ];
-    
+
     // Log levels
     public const LEVEL_DEBUG = 'debug';
     public const LEVEL_INFO = 'info';
     public const LEVEL_WARNING = 'warning';
     public const LEVEL_ERROR = 'error';
-    
+
     // Categories
     public const CATEGORY_API = 'api';
     public const CATEGORY_INVOICE = 'invoice';
     public const CATEGORY_CERTIFICATE = 'certificate';
     public const CATEGORY_VALIDATION = 'validation';
     public const CATEGORY_GENERAL = 'general';
-    
+
     /**
      * Invoice relationship
      */
@@ -58,7 +58,7 @@ class ZatcaLog extends Model
     {
         return $this->belongsTo(ZatcaInvoice::class, 'invoice_id');
     }
-    
+
     /**
      * Scope: By level
      */
@@ -66,7 +66,7 @@ class ZatcaLog extends Model
     {
         return $query->where('level', $level);
     }
-    
+
     /**
      * Scope: By category
      */
@@ -74,7 +74,7 @@ class ZatcaLog extends Model
     {
         return $query->where('category', $category);
     }
-    
+
     /**
      * Scope: Errors only
      */
@@ -82,7 +82,7 @@ class ZatcaLog extends Model
     {
         return $query->where('level', self::LEVEL_ERROR);
     }
-    
+
     /**
      * Scope: Recent
      */
@@ -90,7 +90,7 @@ class ZatcaLog extends Model
     {
         return $query->where('created_at', '>=', now()->subHours($hours));
     }
-    
+
     /**
      * Scope: By action
      */
@@ -98,7 +98,7 @@ class ZatcaLog extends Model
     {
         return $query->where('action', $action);
     }
-    
+
     /**
      * Create error log entry
      */
@@ -121,7 +121,7 @@ class ZatcaLog extends Model
             'invoice_id' => $invoiceId,
         ]);
     }
-    
+
     /**
      * Create info log entry
      */

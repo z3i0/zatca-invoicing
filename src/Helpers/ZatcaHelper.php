@@ -6,7 +6,7 @@ namespace SaudiZATCA\Helpers;
 
 /**
  * ZATCA Helper
- * 
+ *
  * Utility functions for ZATCA operations.
  */
 class ZatcaHelper
@@ -33,11 +33,11 @@ class ZatcaHelper
     public static function formatVatNumber(string $vatNumber): string
     {
         $cleaned = preg_replace('/\D/', '', $vatNumber);
-        
+
         if (strlen($cleaned) === 15) {
             return $cleaned;
         }
-        
+
         // Pad with leading zeros if needed
         return str_pad($cleaned, 15, '0', STR_PAD_LEFT);
     }
@@ -126,7 +126,7 @@ class ZatcaHelper
             '=',
             STR_PAD_RIGHT
         );
-        
+
         $decoded = base64_decode($padded);
         return $decoded !== false ? $decoded : '';
     }
@@ -183,13 +183,13 @@ class ZatcaHelper
     public static function maskSensitive(string $data, int $visibleChars = 4): string
     {
         $length = strlen($data);
-        
+
         if ($length <= $visibleChars * 2) {
             return str_repeat('*', $length);
         }
 
-        return substr($data, 0, $visibleChars) 
-            . str_repeat('*', $length - $visibleChars * 2) 
+        return substr($data, 0, $visibleChars)
+            . str_repeat('*', $length - $visibleChars * 2)
             . substr($data, -$visibleChars);
     }
 

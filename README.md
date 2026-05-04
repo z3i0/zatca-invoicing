@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/ZATCA-Phase%202-blue" alt="ZATCA Phase 2">
-  <img src="https://img.shields.io/badge/Laravel-10.x%2F11.x%2F12.x-red" alt="Laravel">
+  <img src="https://img.shields.io/badge/Laravel-10.x%2F11.x%2F12.x%2F13.x-red" alt="Laravel">
   <img src="https://img.shields.io/badge/PHP-8.1%2B-purple" alt="PHP 8.1+">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
@@ -28,7 +28,7 @@ Complete Laravel package for **ZATCA (Saudi Arabia) E-Invoicing Phase 2** integr
 ## Requirements
 
 - PHP 8.1+
-- Laravel 10.x / 11.x / 12.x
+- Laravel 10.x / 11.x / 12.x / 13.x
 - OpenSSL extension with EC support
 - GMP extension (recommended)
 - ext-dom, ext-mbstring, ext-json, ext-xmlwriter, ext-curl

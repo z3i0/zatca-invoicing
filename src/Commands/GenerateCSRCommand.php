@@ -10,7 +10,7 @@ use SaudiZATCA\Exceptions\CertificateException;
 
 /**
  * Command to generate CSR (Certificate Signing Request)
- * 
+ *
  * php artisan zatca:csr --vat=300000000000003 --org="My Company" --cn="My Company"
  */
 class GenerateCSRCommand extends Command
@@ -31,7 +31,7 @@ class GenerateCSRCommand extends Command
         $this->info('═══════════════════════════════════════');
         $this->info('  ZATCA CSR Generation');
         $this->info('═══════════════════════════════════════');
-        
+
         try {
             $vatNumber = $this->option('vat') ?: config('zatca.seller.vat_number');
             $orgName = $this->option('org') ?: config('zatca.certificate.organization');
@@ -40,15 +40,15 @@ class GenerateCSRCommand extends Command
             $street = $this->option('street') ?: config('zatca.seller.street');
             $city = $this->option('city') ?: config('zatca.seller.city');
             $deviceSerial = $this->option('device');
-            
+
             if (empty($vatNumber)) {
                 $this->error('VAT Number is required. Provide --vat or set ZATCA_VAT_NUMBER in .env');
                 return self::FAILURE;
             }
-            
+
             $this->info("VAT Number: {$vatNumber}");
             $this->info("Organization: {$orgName}");
-            
+
             $merchantData = [
                 'organization_identifier' => $vatNumber,
                 'organization' => $orgName,
@@ -59,10 +59,10 @@ class GenerateCSRCommand extends Command
                 'device_serial' => $deviceSerial,
                 'solution_name' => config('zatca.solution_name', 'Laravel'),
             ];
-            
+
             $this->info('Generating CSR and Private Key...');
             $result = Zatca::certificate()->generateCSR($merchantData);
-            
+
             $this->info('✅ CSR generated successfully!');
             $this->newLine();
             $this->info('Files saved:');
@@ -71,9 +71,8 @@ class GenerateCSRCommand extends Command
             $this->newLine();
             $this->info('Next step: Submit CSR to ZATCA portal to get OTP, then run:');
             $this->warn('  php artisan zatca:compliance-csid --otp=YOUR_OTP');
-            
+
             return self::SUCCESS;
-            
         } catch (CertificateException $e) {
             $this->error('❌ Certificate Error: ' . $e->getMessage());
             if ($e->getDetails()) {

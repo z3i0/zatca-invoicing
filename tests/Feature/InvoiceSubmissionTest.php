@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SaudiZATCA\Tests\Feature;
 
+use PHPUnit\Framework\Attributes\Test;
 use SaudiZATCA\Tests\TestCase;
 use SaudiZATCA\Facades\Zatca;
 use SaudiZATCA\Data\InvoiceData;
@@ -14,11 +15,11 @@ use SaudiZATCA\Models\ZatcaInvoice;
 
 class InvoiceSubmissionTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_generates_valid_xml_invoice()
     {
         $seller = SellerData::fromConfig(config('zatca.seller'));
-        
+
         $invoice = new InvoiceData(
             'INV-TEST-001',
             new \DateTime(),
@@ -44,11 +45,11 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertStringContainsString($buyer->vatNumber, $xml);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_simplified_invoice_xml()
     {
         $seller = SellerData::fromConfig(config('zatca.seller'));
-        
+
         $invoice = new InvoiceData(
             'INV-SIMPLE-001',
             new \DateTime(),
@@ -64,11 +65,11 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertStringContainsString($invoice->invoiceNumber, $xml);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_credit_note_xml()
     {
         $seller = SellerData::fromConfig(config('zatca.seller'));
-        
+
         $invoice = new InvoiceData(
             'CN-001',
             new \DateTime(),
@@ -86,22 +87,22 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertStringContainsString('INV-ORIG-001', $xml);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_invoice_hash()
     {
         $xml = '<test><data>value</data></test>';
-        
+
         $hash = Zatca::xml()->calculateHash($xml);
-        
+
         $this->assertNotEmpty($hash);
         $this->assertTrue($this->isValidBase64($hash));
-        
+
         // Same input should produce same hash
         $hash2 = Zatca::xml()->calculateHash($xml);
         $this->assertEquals($hash, $hash2);
     }
 
-    /** @test */
+    #[Test]
     public function it_stores_invoice_in_database()
     {
         $invoice = ZatcaInvoice::create([
@@ -130,7 +131,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertEquals(100.00, $invoice->sub_total);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_update_invoice_status()
     {
         $invoice = ZatcaInvoice::create([
@@ -154,7 +155,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertNotNull($invoice->fresh()->submitted_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_mark_invoice_as_failed()
     {
         $invoice = ZatcaInvoice::create([
@@ -180,7 +181,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertEquals(1, $fresh->retry_count);
     }
 
-    /** @test */
+    #[Test]
     public function it_checks_retry_eligibility()
     {
         $invoice = ZatcaInvoice::create([
@@ -205,7 +206,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertFalse($invoice->fresh()->canRetry());
     }
 
-    /** @test */
+    #[Test]
     public function it_queries_pending_invoices()
     {
         // Create pending invoice
@@ -245,7 +246,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertEquals('INV-PENDING-001', $pending->first()->invoice_number);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_xml_structure()
     {
         $validXml = '<?xml version="1.0"?><root><child/></root>';
@@ -254,7 +255,7 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertTrue($result['valid']);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_invalid_xml()
     {
         $invalidXml = '<?xml version="1.0"?><root><unclosed>';
@@ -264,11 +265,11 @@ class InvoiceSubmissionTest extends TestCase
         $this->assertNotEmpty($result['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_correct_tax_for_multiple_rates()
     {
         $seller = SellerData::fromConfig(config('zatca.seller'));
-        
+
         $lines = [
             new InvoiceLineData('Standard Item', 1, 100.0, 15.0),
             new InvoiceLineData('Zero-rated Item', 1, 50.0, 0.0),

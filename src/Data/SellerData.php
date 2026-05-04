@@ -6,7 +6,7 @@ namespace SaudiZATCA\Data;
 
 /**
  * Seller Data Transfer Object
- * 
+ *
  * Represents seller information required for ZATCA invoices.
  */
 class SellerData
@@ -26,7 +26,8 @@ class SellerData
         public readonly ?string $email = null,
         public readonly ?string $phone = null,
         public readonly ?string $industry = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Create from array
