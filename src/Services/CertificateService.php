@@ -94,41 +94,39 @@ class CertificateService
      */
     private function createCSR(OpenSSLAsymmetricKey $privateKey, array $data, string $invoiceTypes): mixed
     {
-        $orgIdentifier = $data['organization_identifier'] ?? $data['vat_number'] ?? $this->config['organization'] ?? '';
+        $orgIdentifier = $data['organization_identifier'] ?? $data['vat_number'] ?? $this->config['vat_number'] ?? '';
         $serialNumber = $this->buildSerialNumber($data);
         $commonName = $data['common_name'] ?? $this->config['common_name'] ?? $orgIdentifier;
         $orgName = $data['organization'] ?? $this->config['organization'] ?? '';
         $orgUnit = $data['organization_unit'] ?? $this->config['organization_unit'] ?? '';
+        $city = $data['city'] ?? $this->config['city'] ?? '';
+        $state = $data['country_subdivision'] ?? $this->config['country_subdivision'] ?? '';
         $address = $this->buildAddress($data);
         $industry = $data['industry'] ?? $this->config['industry'] ?? self::INDUSTRY;
         
-        // Build DN according to ZATCA specification
+        // Build DN according to ZATCA specification using OIDs for maximum compatibility
+        // ZATCA requires specific OIDs for organizationIdentifier and businessCategory
         $dn = [
-            'UID' => $orgIdentifier,
-            'serialNumber' => $serialNumber,
             'CN' => $commonName,
-            'O' => $orgName,
-            'OU' => $orgUnit,
             'C' => self::COUNTRY_CODE,
-            'L' => $address,
-            'ST' => $data['country_subdivision'] ?? $this->config['country_subdivision'] ?? '',
-            'businessCategory' => $industry,
+            'OU' => $orgUnit,
+            'O' => $orgName,
+            '2.5.4.15' => $industry, // businessCategory
+            '2.5.4.97' => $orgIdentifier, // organizationIdentifier
+            '2.5.4.5' => $serialNumber, // serialNumber
+            'L' => $city,
+            'ST' => $state,
+            '2.5.4.26' => $address, // registeredAddress
         ];
         
         // Filter out empty values to avoid OpenSSL errors
         $dn = array_filter($dn, fn($value) => !empty($value));
         
-        // Add invoice types as custom extension
         $config = [
             'digest_alg' => 'sha256',
             'req_extensions' => 'v3_req',
-            'attributes' => [
-                'unstructuredName' => $invoiceTypes,
-            ],
+            'config' => $this->createTempConfig($invoiceTypes),
         ];
-        
-        // Add subject alternative name with invoice types
-        $config['config'] = $this->createTempConfig($invoiceTypes);
         
         $csr = openssl_csr_new($dn, $privateKey, $config);
         
@@ -191,10 +189,12 @@ C = SA
 CN = dummy
 
 [v3_req]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment
 subjectAltName = @alt_names
 
 [alt_names]
-otherName.1 = 1.3.6.1.4.1.311.20.2.3;UTF8:{$invoiceTypes}
+otherName = 1.3.6.1.4.1.311.20.2.3;UTF8:{$invoiceTypes}
 CONFIG;
         
         file_put_contents($tempFile, $config);
